@@ -167,6 +167,68 @@ local InterfaceManager = {} do
 			end
 		})
 
+		-- ESP Section
+		local ESPSection = tab:AddSection("Visuals (ESP)")
+		
+		ESPSection:AddToggle("ESPEnabled", {
+			Title = "Enable ESP",
+			Description = "Master switch for all visuals",
+			Default = false,
+			Callback = function(Value)
+				Library.ESP.Enabled = Value
+				if Value then Library.ESP:Enable() else Library.ESP:Disable() end
+			end
+		})
+
+		ESPSection:AddToggle("ESPBoxes", {
+			Title = "Boxes",
+			Default = false,
+			Callback = function(Value) Library.ESP.Boxes = Value end
+		})
+		
+		ESPSection:AddColorpicker("ESPBoxColor", {
+			Title = "Box Color",
+			Default = Color3.fromRGB(255, 255, 255),
+			Callback = function(Value) Library.ESP.BoxColor = Value end
+		})
+		
+		ESPSection:AddToggle("ESPTracers", {
+			Title = "Tracers",
+			Default = false,
+			Callback = function(Value) Library.ESP.Tracers = Value end
+		})
+		
+		ESPSection:AddColorpicker("ESPTracerColor", {
+			Title = "Tracer Color",
+			Default = Color3.fromRGB(255, 255, 255),
+			Callback = function(Value) Library.ESP.TracerColor = Value end
+		})
+		
+		ESPSection:AddToggle("ESPNames", {
+			Title = "Names",
+			Default = false,
+			Callback = function(Value) Library.ESP.Names = Value end
+		})
+		
+		ESPSection:AddToggle("ESPDistance", {
+			Title = "Show Distance",
+			Default = false,
+			Callback = function(Value) Library.ESP.Distance = Value end
+		})
+		
+		ESPSection:AddToggle("ESPHealth", {
+			Title = "Health Bar",
+			Default = false,
+			Callback = function(Value) Library.ESP.HealthBar = Value end
+		})
+		
+		ESPSection:AddToggle("ESPTeamCheck", {
+			Title = "Team Check",
+			Description = "Hide teammates",
+			Default = false,
+			Callback = function(Value) Library.ESP.TeamCheck = Value end
+		})
+
 		if game.PlaceId == 93978595733734 or game.GameId == 93978595733734 then
 			section:AddToggle("AutoCursorUnlock", {
 				Title = "Auto Cursor Unlock",
