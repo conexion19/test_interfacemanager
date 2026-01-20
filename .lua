@@ -121,15 +121,15 @@ local InterfaceManager = {} do
 			end
 		})
 
-		section:AddToggle("CharacterViewToggle", {
-			Title = "3D Character View",
-			Description = "Displays a rotatable character model in the corner.",
+		section:AddToggle("TimeTrackerToggle", {
+			Title = "Time Tracker",
+			Description = "Shows session time in top right.",
 			Default = false,
 			Callback = function(Value)
 				if Value then
-					Library.CharacterView:Enable()
+					Library.TimeTracker:Enable()
 				else
-					Library.CharacterView:Disable()
+					Library.TimeTracker:Disable()
 				end
 			end
 		})
