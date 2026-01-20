@@ -120,6 +120,19 @@ local InterfaceManager = {} do
 				end
 			end
 		})
+
+		section:AddToggle("CharacterViewToggle", {
+			Title = "3D Character View",
+			Description = "Displays a rotatable character model in the corner.",
+			Default = false,
+			Callback = function(Value)
+				if Value then
+					Library.CharacterView:Enable()
+				else
+					Library.CharacterView:Disable()
+				end
+			end
+		})
 	
 		local MenuKeybind = section:AddKeybind("MenuKeybind", { Title = "Minimize Bind", Default = Settings.MenuKeybind })
 		MenuKeybind:OnChanged(function()
