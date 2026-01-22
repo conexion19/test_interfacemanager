@@ -120,19 +120,6 @@ local InterfaceManager = {} do
 				end
 			end
 		})
-
-		section:AddToggle("TimeTrackerToggle", {
-			Title = "Time Tracker",
-			Description = "Shows session time in top right.",
-			Default = false,
-			Callback = function(Value)
-				if Value then
-					Library.TimeTracker:Enable()
-				else
-					Library.TimeTracker:Disable()
-				end
-			end
-		})
 	
 		local MenuKeybind = section:AddKeybind("MenuKeybind", { Title = "Minimize Bind", Default = Settings.MenuKeybind })
 		MenuKeybind:OnChanged(function()
@@ -140,107 +127,6 @@ local InterfaceManager = {} do
             InterfaceManager:SaveSettings()
 		end)
 		Library.MinimizeKeybind = MenuKeybind
-		
-		-- Chronos Section
-		local ChronosSection = tab:AddSection("Time Machine (Chronos)")
-		
-		ChronosSection:AddToggle("ChronosEnabled", {
-			Title = "Enable Time Rewind",
-			Description = "Records movement to allow rewinding time.",
-			Default = false,
-			Callback = function(Value)
-				Library.Chronos.Recording = Value
-				if Value then
-					Library.Chronos:StartRecording()
-				else
-					Library.Chronos.History = {} -- Clear history to save memory
-				end
-			end
-		})
-		
-		ChronosSection:AddKeybind("ChronosKey", {
-			Title = "Rewind Key",
-			Description = "Hold to rewind time",
-			Default = "X",
-			Callback = function() end,
-			ChangedCallback = function(New)
-				Library.Chronos.Key = New
-			end
-		})
-		
-		ChronosSection:AddSlider("ChronosDuration", {
-			Title = "Max History Duration",
-			Description = "Seconds of time to store (Memory intensive!)",
-			Default = 5,
-			Min = 1,
-			Max = 15,
-			Rounding = 0,
-			Callback = function(Value)
-				Library.Chronos.MaxTime = Value
-			end
-		})
-
-		-- ESP Section
-		local ESPSection = tab:AddSection("Visuals (ESP)")
-		
-		ESPSection:AddToggle("ESPEnabled", {
-			Title = "Enable ESP",
-			Description = "Master switch for all visuals",
-			Default = false,
-			Callback = function(Value)
-				Library.ESP.Enabled = Value
-				if Value then Library.ESP:Enable() else Library.ESP:Disable() end
-			end
-		})
-
-		ESPSection:AddToggle("ESPBoxes", {
-			Title = "Boxes",
-			Default = false,
-			Callback = function(Value) Library.ESP.Boxes = Value end
-		})
-		
-		ESPSection:AddColorpicker("ESPBoxColor", {
-			Title = "Box Color",
-			Default = Color3.fromRGB(255, 255, 255),
-			Callback = function(Value) Library.ESP.BoxColor = Value end
-		})
-		
-		ESPSection:AddToggle("ESPTracers", {
-			Title = "Tracers",
-			Default = false,
-			Callback = function(Value) Library.ESP.Tracers = Value end
-		})
-		
-		ESPSection:AddColorpicker("ESPTracerColor", {
-			Title = "Tracer Color",
-			Default = Color3.fromRGB(255, 255, 255),
-			Callback = function(Value) Library.ESP.TracerColor = Value end
-		})
-		
-		ESPSection:AddToggle("ESPNames", {
-			Title = "Names",
-			Default = false,
-			Callback = function(Value) Library.ESP.Names = Value end
-		})
-		
-		ESPSection:AddToggle("ESPDistance", {
-			Title = "Show Distance",
-			Default = false,
-			Callback = function(Value) Library.ESP.Distance = Value end
-		})
-		
-		ESPSection:AddToggle("ESPHealth", {
-			Title = "Health Bar",
-			Default = false,
-			Callback = function(Value) Library.ESP.HealthBar = Value end
-		})
-		
-		ESPSection:AddToggle("ESPTeamCheck", {
-			Title = "Team Check",
-			Description = "Hide teammates",
-			Default = false,
-			Callback = function(Value) Library.ESP.TeamCheck = Value end
-		})
 
 		if game.PlaceId == 93978595733734 or game.GameId == 93978595733734 then
 			section:AddToggle("AutoCursorUnlock", {
@@ -287,6 +173,42 @@ local InterfaceManager = {} do
 				end
 			})
 		end
+
+		-- Developer Tools Section
+		local ToolsSection = tab:AddSection("Developer Tools")
+		
+		ToolsSection:AddButton({
+			Title = "Discord RPC",
+			Description = "Open Discord Rich Presence Config",
+			Callback = function()
+				if Library.DiscordRPC then
+					Library.DiscordRPC:Start(Library.Window)
+					Library:Notify({Title = "Tools", Content = "Discord RPC Tab Added", Duration = 3})
+				end
+			end
+		})
+		
+		ToolsSection:AddButton({
+			Title = "Remote Spy",
+			Description = "Open Remote Spy & Logger",
+			Callback = function()
+				if Library.RemoteSpy then
+					Library.RemoteSpy:Init(Library.Window)
+					Library:Notify({Title = "Tools", Content = "Remote Spy Tab Added", Duration = 3})
+				end
+			end
+		})
+		
+		ToolsSection:AddButton({
+			Title = "Dex Explorer",
+			Description = "Open Object Explorer (Lite)",
+			Callback = function()
+				if Library.Dex then
+					Library.Dex:Init(Library.Window)
+					Library:Notify({Title = "Tools", Content = "Dex Explorer Tab Added", Duration = 3})
+				end
+			end
+		})
     end
 end
 
