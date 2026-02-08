@@ -143,27 +143,27 @@ local InterfaceManager = {} do
 					Settings.AutoCursorUnlock = Value
 					InterfaceManager:SaveSettings()
 					
-					itask.spawn(function()
-                            if InterfaceManager.CursorConnection then
-                                InterfaceManager.CursorConnection:Disconnect()
-                            end
-                            
-                            InterfaceManager.CursorConnection = RunService.Heartbeat:Connect(function()
-                                if Library.Window and Library.Window.Root then
-                                    if Library.Window.Root.Visible then
-                                        pcall(function()
-                                            UserInputService.MouseBehavior = Enum.MouseBehavior.Default
-                                            UserInputService.MouseIconEnabled = true
-                                        end)
-                                    else
-                                        pcall(function()
-                                            UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
-                                            UserInputService.MouseIconEnabled = false
-                                        end)
-                                    end
-                                end
-                            end)
-                        	end
+					if Value then
+						task.spawn(function()
+							if InterfaceManager.CursorConnection then
+								InterfaceManager.CursorConnection:Disconnect()
+							end
+							
+							InterfaceManager.CursorConnection = RunService.Heartbeat:Connect(function()
+								if Library.Window and Library.Window.Root then
+									if Library.Window.Root.Visible then
+										pcall(function()
+											UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+											UserInputService.MouseIconEnabled = true
+										end)
+									else
+										pcall(function()
+											UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+											UserInputService.MouseIconEnabled = false
+										end)
+									end
+								end
+							end)
 						end)
 						
 						if Library.Window and not Library.Window.Minimized then
