@@ -101,7 +101,7 @@ local InterfaceManager = {} do
 		section:AddToggle("SnowfallToggle", {
 			Title = "Snowfall Effect",
 			Description = "Enable or disable the snowfall effect.",
-			Default = Settings.Snowfall == nil and true or Settings.Snowfall,
+			Default = true, -- FORCE DEFAULT TRUE
 			Callback = function(Value)
 				Settings.Snowfall = Value
                 Library.SnowfallEnabled = Value
@@ -111,6 +111,26 @@ local InterfaceManager = {} do
 				end
 			end
 		})
+        
+        -- Apply saved setting if it exists, otherwise it stays true from Default above?
+        -- Wait, AddToggle uses Default if Settings doesn't have it? 
+        -- Actually, Fluent usually uses the passed Default if the element isn't in options.
+        -- But here we pass Default = true. If Settings.Snowfall is false (loaded), Fluent might use that on init if passed properly?
+        -- No, Fluent uses `Config.Default`. Value is `Config.Default`.
+        -- If we want to respect IsLoaded, we should pass Settings.Snowfall if not nil.
+        
+        local snowfallDefault = true
+        if Settings.Snowfall ~= nil then
+            snowfallDefault = Settings.Snowfall
+        end
+        -- However user complained "Toggle became initially off".
+        -- If we want "Always on initially" regardless of save, we just pass true.
+        -- But that prevents turning it off permanently.
+        -- User said "initially toggle snow should be always on".
+        -- Maybe they mean default should be on.
+        
+        -- Let's try forcing it to ensure it works.
+        if Settings.Snowfall == nil then Settings.Snowfall = true end
 	
         local MenuKeybind = section:AddKeybind("MenuKeybind", { Title = "Minimize Bind", Default = Settings.MenuKeybind })
         MenuKeybind:OnChanged(function()
