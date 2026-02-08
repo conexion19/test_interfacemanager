@@ -5,7 +5,7 @@ local RunService = game:GetService("RunService")
 local InterfaceManager = {} do
 	InterfaceManager.Folder = "FluentSettings"
     InterfaceManager.Settings = {
-        Theme = "Dark",
+        Theme = "Slate",
         Acrylic = true,
         Transparency = true,
         Snowfall = true,
@@ -70,19 +70,9 @@ local InterfaceManager = {} do
 
 		local section = tab:AddSection("Interface")
 
-		local InterfaceTheme = section:AddDropdown("InterfaceTheme", {
-			Title = "Theme",
-			Description = "Changes the interface theme.",
-			Values = Library.Themes,
-			Default = Settings.Theme,
-			Callback = function(Value)
-				Library:SetTheme(Value)
-                Settings.Theme = Value
-                InterfaceManager:SaveSettings()
-			end
-		})
-
-        InterfaceTheme:SetValue(Settings.Theme)
+        Settings.Theme = "Slate"
+        Library:SetTheme("Slate")
+        InterfaceManager:SaveSettings()
 	
 		if Library.UseAcrylic then
 			section:AddToggle("AcrylicToggle", {
@@ -114,6 +104,7 @@ local InterfaceManager = {} do
 			Default = Settings.Snowfall == nil and true or Settings.Snowfall,
 			Callback = function(Value)
 				Settings.Snowfall = Value
+                Library.SnowfallEnabled = Value
 				InterfaceManager:SaveSettings()
 				if Library.Snowfall then
 					Library.Snowfall:SetVisible(Value)
@@ -121,12 +112,27 @@ local InterfaceManager = {} do
 			end
 		})
 	
-		local MenuKeybind = section:AddKeybind("MenuKeybind", { Title = "Minimize Bind", Default = Settings.MenuKeybind })
-		MenuKeybind:OnChanged(function()
-			Settings.MenuKeybind = MenuKeybind.Value
+        local MenuKeybind = section:AddKeybind("MenuKeybind", { Title = "Minimize Bind", Default = Settings.MenuKeybind })
+        MenuKeybind:OnChanged(function()
+            Settings.MenuKeybind = MenuKeybind.Value
             InterfaceManager:SaveSettings()
-		end)
-		Library.MinimizeKeybind = MenuKeybind
+        end)
+        Library.MinimizeKeybind = MenuKeybind
+
+        section:AddButton({
+            Title = "Reset Keybinds",
+            Description = "Resets all assigned keybinds to None",
+            Callback = function()
+                if Library.Keybinds then
+                    for _, keybind in pairs(Library.Keybinds) do
+                        if keybind.Value ~= "None" then
+                            keybind:SetValue("None")
+                        end
+                    end
+                    Library:UpdateKeybinds()
+                end
+            end
+        })
 
 		if game.PlaceId == 93978595733734 or game.GameId == 93978595733734 then
 			section:AddToggle("AutoCursorUnlock", {
@@ -137,25 +143,27 @@ local InterfaceManager = {} do
 					Settings.AutoCursorUnlock = Value
 					InterfaceManager:SaveSettings()
 					
-					if Value then
-						if InterfaceManager.CursorConnection then
-							InterfaceManager.CursorConnection:Disconnect()
-						end
-						
-						InterfaceManager.CursorConnection = RunService.Heartbeat:Connect(function()
-							if Library.Window and Library.Window.Root then
-								if Library.Window.Root.Visible then
-									pcall(function()
-										UserInputService.MouseBehavior = Enum.MouseBehavior.Default
-										UserInputService.MouseIconEnabled = true
-									end)
-								else
-									pcall(function()
-										UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
-										UserInputService.MouseIconEnabled = false
-									end)
-								end
-							end
+					itask.spawn(function()
+                            if InterfaceManager.CursorConnection then
+                                InterfaceManager.CursorConnection:Disconnect()
+                            end
+                            
+                            InterfaceManager.CursorConnection = RunService.Heartbeat:Connect(function()
+                                if Library.Window and Library.Window.Root then
+                                    if Library.Window.Root.Visible then
+                                        pcall(function()
+                                            UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+                                            UserInputService.MouseIconEnabled = true
+                                        end)
+                                    else
+                                        pcall(function()
+                                            UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+                                            UserInputService.MouseIconEnabled = false
+                                        end)
+                                    end
+                                end
+                            end)
+                        	end
 						end)
 						
 						if Library.Window and not Library.Window.Minimized then
@@ -173,42 +181,6 @@ local InterfaceManager = {} do
 				end
 			})
 		end
-
-		-- Developer Tools Section
-		local ToolsSection = tab:AddSection("Developer Tools")
-		
-		ToolsSection:AddButton({
-			Title = "Discord RPC",
-			Description = "Open Discord Rich Presence Config",
-			Callback = function()
-				if Library.DiscordRPC then
-					Library.DiscordRPC:Start(Library.Window)
-					Library:Notify({Title = "Tools", Content = "Discord RPC Tab Added", Duration = 3})
-				end
-			end
-		})
-		
-		ToolsSection:AddButton({
-			Title = "Remote Spy",
-			Description = "Open Remote Spy & Logger",
-			Callback = function()
-				if Library.RemoteSpy then
-					Library.RemoteSpy:Init(Library.Window)
-					Library:Notify({Title = "Tools", Content = "Remote Spy Tab Added", Duration = 3})
-				end
-			end
-		})
-		
-		ToolsSection:AddButton({
-			Title = "Dex Explorer",
-			Description = "Open Object Explorer (Lite)",
-			Callback = function()
-				if Library.Dex then
-					Library.Dex:Init(Library.Window)
-					Library:Notify({Title = "Tools", Content = "Dex Explorer Tab Added", Duration = 3})
-				end
-			end
-		})
     end
 end
 
