@@ -101,7 +101,7 @@ local InterfaceManager = {} do
 		section:AddToggle("SnowfallToggle", {
 			Title = "Snowfall Effect",
 			Description = "Enable or disable the snowfall effect.",
-			Default = true, -- FORCE DEFAULT TRUE
+			Default = true,
 			Callback = function(Value)
 				Settings.Snowfall = Value
                 Library.SnowfallEnabled = Value
