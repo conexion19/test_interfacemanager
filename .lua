@@ -7,10 +7,11 @@ local InterfaceManager = {} do
     InterfaceManager.Settings = {
         Theme = "Slate",
         Acrylic = true,
-        Transparency = true,
-        Snowfall = true,
+        Transparency = false, -- Changed to false by default
+        -- Snowfall = true,
         MenuKeybind = "LeftControl",
-        AutoCursorUnlock = false
+        AutoCursorUnlock = false,
+        Language = "English"
     }
 
     InterfaceManager.CursorConnection = nil
@@ -18,10 +19,6 @@ local InterfaceManager = {} do
     function InterfaceManager:SetFolder(folder)
 		self.Folder = folder;
 		self:BuildFolderTree()
-	end
-
-    function InterfaceManager:SetLibrary(library)
-		self.Library = library
 	end
 
     function InterfaceManager:BuildFolderTree()
@@ -72,6 +69,15 @@ local InterfaceManager = {} do
 
         Settings.Theme = "Slate"
         Library:SetTheme("Slate")
+        
+        -- Force transparency to false regardless of saved settings
+        Settings.Transparency = false
+        Library:ToggleTransparency(false)
+        
+        if Settings.Language and Library.LanguageManager then
+            Library.LanguageManager:SetLanguage(Settings.Language)
+        end
+        
         InterfaceManager:SaveSettings()
 	
 		if Library.UseAcrylic then
@@ -86,7 +92,23 @@ local InterfaceManager = {} do
 				end
 			})
 		end
+		
+		if Library.LanguageManager then
+			section:AddDropdown("LanguageDropdown", {
+				Title = "Language",
+				Description = "Select the interface language.",
+				Values = {"English", "Russian"},
+				Multi = false,
+				Default = Settings.Language or "English",
+				Callback = function(Value)
+					Settings.Language = Value
+					Library.LanguageManager:SetLanguage(Value)
+					InterfaceManager:SaveSettings()
+				end
+			})
+		end
 	
+		--[[
 		section:AddToggle("TransparentToggle", {
 			Title = "Transparency",
 			Description = "Makes the interface transparent.",
@@ -97,62 +119,27 @@ local InterfaceManager = {} do
                 InterfaceManager:SaveSettings()
 			end
 		})
+		]]
 
-		section:AddToggle("SnowfallToggle", {
-			Title = "Snowfall Effect",
-			Description = "Enable or disable the snowfall effect.",
-			Default = true,
-			Callback = function(Value)
-				Settings.Snowfall = Value
-                Library.SnowfallEnabled = Value
-				InterfaceManager:SaveSettings()
-				if Library.Snowfall then
-					Library.Snowfall:SetVisible(Value)
-				end
-			end
-		})
-        
-        -- Apply saved setting if it exists, otherwise it stays true from Default above?
-        -- Wait, AddToggle uses Default if Settings doesn't have it? 
-        -- Actually, Fluent usually uses the passed Default if the element isn't in options.
-        -- But here we pass Default = true. If Settings.Snowfall is false (loaded), Fluent might use that on init if passed properly?
-        -- No, Fluent uses `Config.Default`. Value is `Config.Default`.
-        -- If we want to respect IsLoaded, we should pass Settings.Snowfall if not nil.
-        
-        local snowfallDefault = true
-        if Settings.Snowfall ~= nil then
-            snowfallDefault = Settings.Snowfall
-        end
-        -- However user complained "Toggle became initially off".
-        -- If we want "Always on initially" regardless of save, we just pass true.
-        -- But that prevents turning it off permanently.
-        -- User said "initially toggle snow should be always on".
-        -- Maybe they mean default should be on.
-        
-        -- Let's try forcing it to ensure it works.
-        if Settings.Snowfall == nil then Settings.Snowfall = true end
+		-- section:AddToggle("SnowfallToggle", {
+		-- 	Title = "Snowfall Effect",
+		-- 	Description = "Enable or disable the snowfall effect.",
+		-- 	Default = Settings.Snowfall == nil and true or Settings.Snowfall,
+		-- 	Callback = function(Value)
+		-- 		Settings.Snowfall = Value
+		-- 		InterfaceManager:SaveSettings()
+		-- 		if Library.Snowfall then
+		-- 			Library.Snowfall:SetVisible(Value)
+		-- 		end
+		-- 	end
+		-- })
 	
-        local MenuKeybind = section:AddKeybind("MenuKeybind", { Title = "Minimize Bind", Default = Settings.MenuKeybind })
-        MenuKeybind:OnChanged(function()
-            Settings.MenuKeybind = MenuKeybind.Value
+		local MenuKeybind = section:AddKeybind("MenuKeybind", { Title = "Minimize Bind", Default = Settings.MenuKeybind, NoDisplay = true })
+		MenuKeybind:OnChanged(function()
+			Settings.MenuKeybind = MenuKeybind.Value
             InterfaceManager:SaveSettings()
-        end)
-        Library.MinimizeKeybind = MenuKeybind
-
-        section:AddButton({
-            Title = "Reset Keybinds",
-            Description = "Resets all assigned keybinds to None",
-            Callback = function()
-                if Library.Keybinds then
-                    for _, keybind in pairs(Library.Keybinds) do
-                        if keybind.Value ~= "None" then
-                            keybind:SetValue("None")
-                        end
-                    end
-                    Library:UpdateKeybinds()
-                end
-            end
-        })
+		end)
+		Library.MinimizeKeybind = MenuKeybind
 
 		if game.PlaceId == 93978595733734 or game.GameId == 93978595733734 then
 			section:AddToggle("AutoCursorUnlock", {
@@ -164,26 +151,24 @@ local InterfaceManager = {} do
 					InterfaceManager:SaveSettings()
 					
 					if Value then
-						task.spawn(function()
-							if InterfaceManager.CursorConnection then
-								InterfaceManager.CursorConnection:Disconnect()
-							end
-							
-							InterfaceManager.CursorConnection = RunService.Heartbeat:Connect(function()
-								if Library.Window and Library.Window.Root then
-									if Library.Window.Root.Visible then
-										pcall(function()
-											UserInputService.MouseBehavior = Enum.MouseBehavior.Default
-											UserInputService.MouseIconEnabled = true
-										end)
-									else
-										pcall(function()
-											UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
-											UserInputService.MouseIconEnabled = false
-										end)
-									end
+						if InterfaceManager.CursorConnection then
+							InterfaceManager.CursorConnection:Disconnect()
+						end
+						
+						InterfaceManager.CursorConnection = RunService.Heartbeat:Connect(function()
+							if Library.Window and Library.Window.Root then
+								if Library.Window.Root.Visible then
+									pcall(function()
+										UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+										UserInputService.MouseIconEnabled = true
+									end)
+								else
+									pcall(function()
+										UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+										UserInputService.MouseIconEnabled = false
+									end)
 								end
-							end)
+							end
 						end)
 						
 						if Library.Window and not Library.Window.Minimized then
@@ -202,6 +187,29 @@ local InterfaceManager = {} do
 			})
 		end
     end
+
+    function InterfaceManager:DisableCursorUnlock()
+        if InterfaceManager.CursorConnection then
+            InterfaceManager.CursorConnection:Disconnect()
+            InterfaceManager.CursorConnection = nil
+        end
+        pcall(function()
+            UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+            UserInputService.MouseIconEnabled = true
+        end)
+    end
+
+    function InterfaceManager:SetLibrary(library)
+		self.Library = library
+
+		local originalDestroy = library.Destroy
+		library.Destroy = function(lib, ...)
+			InterfaceManager:DisableCursorUnlock()
+			if originalDestroy then
+				return originalDestroy(lib, ...)
+			end
+		end
+	end
 end
 
 return InterfaceManager
