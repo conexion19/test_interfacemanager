@@ -80,7 +80,8 @@ local InterfaceManager = {} do
             Library:SetTheme(Settings.Theme)
         end)
 		
-        if Settings.Transparency == nil then Settings.Transparency = false end
+        -- Прозрачность включена по умолчанию
+        if Settings.Transparency == nil then Settings.Transparency = true end
         pcall(function()
             Library:ToggleTransparency(Settings.Transparency)
         end)
@@ -103,16 +104,8 @@ local InterfaceManager = {} do
 		end
 	
 		
-		section:AddToggle("TransparentToggle", {
-			Title = "Transparency",
-			Description = "Makes the interface transparent.",
-			Default = Settings.Transparency,
-			Callback = function(Value)
-				Library:ToggleTransparency(Value)
-				Settings.Transparency = Value
-                InterfaceManager:SaveSettings()
-			end
-		})
+		-- Прозрачность всегда включена по умолчанию
+		Settings.Transparency = true
 		
 
 		-- section:AddToggle("SnowfallToggle", {
