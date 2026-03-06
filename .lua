@@ -102,7 +102,7 @@ local InterfaceManager = {} do
 			})
 		end
 	
-		--[[
+		
 		section:AddToggle("TransparentToggle", {
 			Title = "Transparency",
 			Description = "Makes the interface transparent.",
@@ -113,7 +113,7 @@ local InterfaceManager = {} do
                 InterfaceManager:SaveSettings()
 			end
 		})
-		]]
+		
 
 		-- section:AddToggle("SnowfallToggle", {
 		-- 	Title = "Snowfall Effect",
