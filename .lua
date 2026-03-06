@@ -3,13 +3,12 @@ local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
 local InterfaceManager = {} do
-	InterfaceManager.Folder = "FluentSettings"
+	InterfaceManager.Folder = "Nexus Settings"
     InterfaceManager.Settings = {
         Theme = "Slate",
-        Acrylic = true,
-        Transparency = false, -- Changed to false by default
-        -- Snowfall = true,
-        MenuKeybind = "LeftControl",
+        Acrylic = false,
+		Transparency = false,
+        MenuKeybind = "LeftAlt",
         AutoCursorUnlock = false,
         Language = "English"
     }
@@ -17,8 +16,10 @@ local InterfaceManager = {} do
     InterfaceManager.CursorConnection = nil
 
     function InterfaceManager:SetFolder(folder)
-		self.Folder = folder;
-		self:BuildFolderTree()
+		self.Folder = folder
+		pcall(function()
+			self:BuildFolderTree()
+		end)
 	end
 
     function InterfaceManager:BuildFolderTree()
@@ -35,13 +36,17 @@ local InterfaceManager = {} do
 		for i = 1, #paths do
 			local str = paths[i]
 			if not isfolder(str) then
-				makefolder(str)
+				pcall(function()
+					makefolder(str)
+				end)
 			end
 		end
 	end
 
     function InterfaceManager:SaveSettings()
-        writefile(self.Folder .. "/options.json", httpService:JSONEncode(InterfaceManager.Settings))
+        pcall(function()
+            writefile(self.Folder .. "/options.json", httpService:JSONEncode(InterfaceManager.Settings))
+        end)
     end
 
     function InterfaceManager:LoadSettings()
@@ -59,27 +64,31 @@ local InterfaceManager = {} do
     end
 
     function InterfaceManager:BuildInterfaceSection(tab)
-        assert(self.Library, "Must set InterfaceManager.Library")
+		assert(self.Library, "Must set InterfaceManager.Library")
 		local Library = self.Library
-        local Settings = InterfaceManager.Settings
+		local Settings = InterfaceManager.Settings
 
-        InterfaceManager:LoadSettings()
+		pcall(function()
+			InterfaceManager:LoadSettings()
+		end)
 
-		local section = tab:AddSection("Interface")
+		local success, section = pcall(function() return tab:AddSection("Interface") end)
+		if not success or type(section) ~= "table" then return end
 
-        Settings.Theme = "Slate"
-        Library:SetTheme("Slate")
+        if not Settings.Theme then Settings.Theme = "Slate" end
+        pcall(function()
+            Library:SetTheme(Settings.Theme)
+        end)
+		
+        if Settings.Transparency == nil then Settings.Transparency = false end
+        pcall(function()
+            Library:ToggleTransparency(Settings.Transparency)
+        end)
         
-        -- Force transparency to false regardless of saved settings
-        Settings.Transparency = false
-        Library:ToggleTransparency(false)
-        
-        if Settings.Language and Library.LanguageManager then
-            Library.LanguageManager:SetLanguage(Settings.Language)
-        end
-        
-        InterfaceManager:SaveSettings()
-	
+		pcall(function()
+			InterfaceManager:SaveSettings()
+		end)
+
 		if Library.UseAcrylic then
 			section:AddToggle("AcrylicToggle", {
 				Title = "Acrylic",
@@ -87,22 +96,7 @@ local InterfaceManager = {} do
 				Default = Settings.Acrylic,
 				Callback = function(Value)
 					Library:ToggleAcrylic(Value)
-                    Settings.Acrylic = Value
-                    InterfaceManager:SaveSettings()
-				end
-			})
-		end
-		
-		if Library.LanguageManager then
-			section:AddDropdown("LanguageDropdown", {
-				Title = "Language",
-				Description = "Select the interface language.",
-				Values = {"English", "Russian"},
-				Multi = false,
-				Default = Settings.Language or "English",
-				Callback = function(Value)
-					Settings.Language = Value
-					Library.LanguageManager:SetLanguage(Value)
+					Settings.Acrylic = Value
 					InterfaceManager:SaveSettings()
 				end
 			})
