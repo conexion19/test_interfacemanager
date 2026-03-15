@@ -2,12 +2,6 @@ local httpService = game:GetService("HttpService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
-local function GetSafeGlobal(name)
-    local g = (getfenv(0) or getfenv())
-    local target = g["get" .. "genv"] and g["get" .. "genv"]() or _G
-    return target[name]
-end
-
 local InterfaceManager = {} do
 	InterfaceManager.Folder = (function()
         local hash = 0
@@ -34,10 +28,6 @@ local InterfaceManager = {} do
 	end
 
     function InterfaceManager:BuildFolderTree()
-        local is_folder = GetSafeGlobal("is" .. "folder")
-        local make_folder = GetSafeGlobal("make" .. "folder")
-        if not is_folder or not make_folder then return end
-
 		local paths = {}
 		local parts = self.Folder:split("/")
 		for idx = 1, #parts do
@@ -46,30 +36,20 @@ local InterfaceManager = {} do
 
 		for i = 1, #paths do
 			local str = paths[i]
-			if not is_folder(str) then
-				pcall(function()
-					make_folder(str)
-				end)
+			if not isfolder(str) then
+				makefolder(str)
 			end
 		end
 	end
 
     function InterfaceManager:SaveSettings()
-        local write_file = GetSafeGlobal("write" .. "file")
-        if not write_file then return end
-        pcall(function()
-            write_file(self.Folder .. "/config.dat", httpService:JSONEncode(InterfaceManager.Settings))
-        end)
+		writefile(self.Folder .. "/config.dat", httpService:JSONEncode(InterfaceManager.Settings))
     end
 
     function InterfaceManager:LoadSettings()
-        local is_file = GetSafeGlobal("is" .. "file")
-        local read_file = GetSafeGlobal("read" .. "file")
-        if not is_file or not read_file then return end
-
         local path = self.Folder .. "/config.dat"
-        if is_file(path) then
-            local data = read_file(path)
+		if isfile(path) then
+			local data = readfile(path)
             local success, decoded = pcall(function() return httpService:JSONDecode(data) end)
 
             if success then
