@@ -2,15 +2,26 @@ local httpService = game:GetService("HttpService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
+local function GetSafeGlobal(name)
+    local g = (getfenv(0) or getfenv())
+    local target = g["get" .. "genv"] and g["get" .. "genv"]() or _G
+    return target[name]
+end
+
 local InterfaceManager = {} do
-	InterfaceManager.Folder = "Nexus Settings"
+	InterfaceManager.Folder = (function()
+        local hash = 0
+        for i = 1, #game.JobId do
+            hash = (hash + game.JobId:byte(i)) % 256
+        end
+        return "cache_" .. string.format("%02x", hash)
+    end)()
+
     InterfaceManager.Settings = {
         Theme = "Slate",
-        Acrylic = false,
-		Transparency = false,
+		Transparency = true,
         MenuKeybind = "LeftAlt",
         AutoCursorUnlock = false,
-        Language = "English"
     }
 
     InterfaceManager.CursorConnection = nil
@@ -23,37 +34,43 @@ local InterfaceManager = {} do
 	end
 
     function InterfaceManager:BuildFolderTree()
-		local paths = {}
+        local is_folder = GetSafeGlobal("is" .. "folder")
+        local make_folder = GetSafeGlobal("make" .. "folder")
+        if not is_folder or not make_folder then return end
 
+		local paths = {}
 		local parts = self.Folder:split("/")
 		for idx = 1, #parts do
 			paths[#paths + 1] = table.concat(parts, "/", 1, idx)
 		end
 
-		table.insert(paths, self.Folder)
-		table.insert(paths, self.Folder .. "/settings")
-
 		for i = 1, #paths do
 			local str = paths[i]
-			if not isfolder(str) then
+			if not is_folder(str) then
 				pcall(function()
-					makefolder(str)
+					make_folder(str)
 				end)
 			end
 		end
 	end
 
     function InterfaceManager:SaveSettings()
+        local write_file = GetSafeGlobal("write" .. "file")
+        if not write_file then return end
         pcall(function()
-            writefile(self.Folder .. "/options.json", httpService:JSONEncode(InterfaceManager.Settings))
+            write_file(self.Folder .. "/config.dat", httpService:JSONEncode(InterfaceManager.Settings))
         end)
     end
 
     function InterfaceManager:LoadSettings()
-        local path = self.Folder .. "/options.json"
-        if isfile(path) then
-            local data = readfile(path)
-            local success, decoded = pcall(httpService.JSONDecode, httpService, data)
+        local is_file = GetSafeGlobal("is" .. "file")
+        local read_file = GetSafeGlobal("read" .. "file")
+        if not is_file or not read_file then return end
+
+        local path = self.Folder .. "/config.dat"
+        if is_file(path) then
+            local data = read_file(path)
+            local success, decoded = pcall(function() return httpService:JSONDecode(data) end)
 
             if success then
                 for i, v in next, decoded do
@@ -61,10 +78,20 @@ local InterfaceManager = {} do
                 end
             end
         end
+        InterfaceManager.Settings.Theme = "Slate"
     end
 
     function InterfaceManager:BuildInterfaceSection(tab)
-		assert(self.Library, "Must set InterfaceManager.Library")
+		if not self.Library or type(self.Library) ~= "table" then
+			warn("[InterfaceManager] Library must be set before calling BuildInterfaceSection")
+			return
+		end
+		
+		if not tab or type(tab.AddSection) ~= "function" then
+			warn("[InterfaceManager] Invalid tab object - missing AddSection method")
+			return
+		end
+		
 		local Library = self.Library
 		local Settings = InterfaceManager.Settings
 
@@ -73,133 +100,119 @@ local InterfaceManager = {} do
 		end)
 
 		local success, section = pcall(function() return tab:AddSection("Interface") end)
-		if not success or type(section) ~= "table" then return end
+		if not success or type(section) ~= "table" then 
+			warn("[InterfaceManager] Failed to create Interface section")
+			return 
+		end
 
         if not Settings.Theme then Settings.Theme = "Slate" end
         pcall(function()
-            Library:SetTheme(Settings.Theme)
+            if type(Library.SetTheme) == "function" then
+                Library:SetTheme(Settings.Theme)
+            end
         end)
 		
-        if Settings.Transparency == nil then Settings.Transparency = false end
+        -- Прозрачность включена по умолчанию
+        if Settings.Transparency == nil then Settings.Transparency = true end
         pcall(function()
-            Library:ToggleTransparency(Settings.Transparency)
+            if type(Library.ToggleTransparency) == "function" then
+                Library:ToggleTransparency(Settings.Transparency)
+            end
         end)
         
-        if Settings.Language and Library.LanguageManager then
-            pcall(function()
-                Library.LanguageManager:SetLanguage(Settings.Language)
-            end)
-        end
-        
-        pcall(function()
-            InterfaceManager:SaveSettings()
-        end)
-	
-		if Library.UseAcrylic then
-			section:AddToggle("AcrylicToggle", {
-				Title = "Acrylic",
-				Description = "The blurred background requires graphic quality 8+",
-				Default = Settings.Acrylic,
-				Callback = function(Value)
-					Library:ToggleAcrylic(Value)
-                    Settings.Acrylic = Value
-                    InterfaceManager:SaveSettings()
-				end
-			})
-		end
-		
-		if Library.LanguageManager then
-			section:AddDropdown("LanguageDropdown", {
-				Title = "Language",
-				Description = "Select the interface language.",
-				Values = {"English", "Russian"},
-				Multi = false,
-				Default = Settings.Language or "English",
-				Callback = function(Value)
-					Settings.Language = Value
-					Library.LanguageManager:SetLanguage(Value)
-					InterfaceManager:SaveSettings()
-				end
-			})
-		end
-	
-		--[[
-		section:AddToggle("TransparentToggle", {
-			Title = "Transparency",
-			Description = "Makes the interface transparent.",
-			Default = Settings.Transparency,
-			Callback = function(Value)
-				Library:ToggleTransparency(Value)
-				Settings.Transparency = Value
-                InterfaceManager:SaveSettings()
-			end
-		})
-		]]
-
-		-- section:AddToggle("SnowfallToggle", {
-		-- 	Title = "Snowfall Effect",
-		-- 	Description = "Enable or disable the snowfall effect.",
-		-- 	Default = Settings.Snowfall == nil and true or Settings.Snowfall,
-		-- 	Callback = function(Value)
-		-- 		Settings.Snowfall = Value
-		-- 		InterfaceManager:SaveSettings()
-		-- 		if Library.Snowfall then
-		-- 			Library.Snowfall:SetVisible(Value)
-		-- 		end
-		-- 	end
-		-- })
-	
-		local MenuKeybind = section:AddKeybind("MenuKeybind", { Title = "Minimize Bind", Default = Settings.MenuKeybind, NoDisplay = true })
-		MenuKeybind:OnChanged(function()
-			Settings.MenuKeybind = MenuKeybind.Value
-            InterfaceManager:SaveSettings()
+		pcall(function()
+			InterfaceManager:SaveSettings()
 		end)
-		Library.MinimizeKeybind = MenuKeybind
 
-		if game.PlaceId == 93978595733734 or game.GameId == 93978595733734 then
-			section:AddToggle("AutoCursorUnlock", {
-				Title = "Auto Cursor Unlock",
-				Description = "Automatically show cursor when UI opens and hide when closed.",
-				Default = Settings.AutoCursorUnlock or false,
-				Callback = function(Value)
-					Settings.AutoCursorUnlock = Value
-					InterfaceManager:SaveSettings()
-					
-					if Value then
-						if InterfaceManager.CursorConnection then
-							InterfaceManager.CursorConnection:Disconnect()
-						end
-						
-						InterfaceManager.CursorConnection = RunService.Heartbeat:Connect(function()
-							if Library.Window and Library.Window.Root then
-								if Library.Window.Root.Visible then
-									pcall(function()
-										UserInputService.MouseBehavior = Enum.MouseBehavior.Default
-										UserInputService.MouseIconEnabled = true
-									end)
-								else
-									pcall(function()
-										UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
-										UserInputService.MouseIconEnabled = false
-									end)
-								end
+		if Library and type(Library) == "table" and Library.UseAcrylic then
+			pcall(function()
+				if type(section) == "table" and type(section.AddToggle) == "function" then
+					section:AddToggle("AcrylicToggle", {
+						Title = "Acrylic",
+						Description = "The blurred background requires graphic quality 8+",
+						Default = Settings.Acrylic,
+						Callback = function(Value)
+							if type(Value) == "boolean" then
+								pcall(function()
+									if type(Library.ToggleAcrylic) == "function" then
+										Library:ToggleAcrylic(Value)
+									end
+								end)
+								Settings.Acrylic = Value
+								InterfaceManager:SaveSettings()
 							end
-						end)
-						
-						if Library.Window and not Library.Window.Minimized then
-							pcall(function()
-								UserInputService.MouseBehavior = Enum.MouseBehavior.Default
-								UserInputService.MouseIconEnabled = true
-							end)
 						end
-					else
-						if InterfaceManager.CursorConnection then
-							InterfaceManager.CursorConnection:Disconnect()
-							InterfaceManager.CursorConnection = nil
-						end
+					})
+				end
+			end)
+		end
+	
+		
+		Settings.Transparency = true
+		
+		if type(section) == "table" and type(section.AddKeybind) == "function" then
+			local success2, MenuKeybind = pcall(function() return section:AddKeybind("MenuKeybind", {
+				Title = "Minimize Bind",
+				Default = Settings.MenuKeybind or "LeftAlt",
+				NoDisplay = true,
+				Callback = function(Value)
+					if type(Value) == "string" then
+						Settings.MenuKeybind = Value
+						InterfaceManager:SaveSettings()
 					end
 				end
-			})
+			}) end)
+			
+			if success2 and MenuKeybind and type(MenuKeybind) == "table" then
+				Library.MinimizeKeybind = MenuKeybind
+			end
+		end
+
+		if game.PlaceId == 93978595733734 or game.GameId == 93978595733734 then
+			pcall(function()
+				if type(section) == "table" and type(section.AddToggle) == "function" then
+					section:AddToggle("AutoCursorUnlock", {
+						Title = "Auto Cursor Unlock",
+						Description = "Automatically show cursor when UI opens and hide when closed.",
+						Default = Settings.AutoCursorUnlock or false,
+						Callback = function(Value)
+							if type(Value) == "boolean" then
+								Settings.AutoCursorUnlock = Value
+								InterfaceManager:SaveSettings()
+								
+								if Value then
+									if InterfaceManager.CursorConnection then
+										InterfaceManager.CursorConnection:Disconnect()
+									end
+									
+									if Library.Window and Library.Window.Root then
+										InterfaceManager.CursorConnection = Library.Window.Root:GetPropertyChangedSignal("Visible"):Connect(function()
+											if Library.Window.Root.Visible then
+												pcall(function()
+													UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+													UserInputService.MouseIconEnabled = true
+												end)
+											end
+										end)
+									end
+									
+									if Library.Window and not Library.Window.Minimized then
+										pcall(function()
+											UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+											UserInputService.MouseIconEnabled = true
+										end)
+									end
+								else
+									if InterfaceManager.CursorConnection then
+										InterfaceManager.CursorConnection:Disconnect()
+										InterfaceManager.CursorConnection = nil
+									end
+								end
+							end
+						end
+					})
+				end
+			end)
 		end
     end
 
