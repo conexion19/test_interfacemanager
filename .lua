@@ -98,17 +98,18 @@ local InterfaceManager = {} do
 				Default = Settings.MenuKeybind or "LeftAlt",
 				NoDisplay = true,
 				Callback = function(Value)
-					local valToSave = type(Value) == "string" and Value or (typeof(Value) == "EnumItem" and Value.Name or tostring(Value))
-					Settings.MenuKeybind = valToSave
-					InterfaceManager:SaveSettings()
-					if Library then
-                         Library.MinimizeKeybind = Value
-                    end
+					if type(Value) == "string" then
+						Settings.MenuKeybind = Value
+						InterfaceManager:SaveSettings()
+						if Library then
+                             Library.MinimizeKeybind = Value
+                        end
+					end
 				end
 			}) end)
 			
 			if success2 and MenuKeybind and type(MenuKeybind) == "table" then
-				Library.MinimizeKeybind = MenuKeybind.Value
+				Library.MinimizeKeybind = MenuKeybind
 			end
 		end
 
