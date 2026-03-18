@@ -12,8 +12,7 @@ local InterfaceManager = {} do
     end)()
 
     InterfaceManager.Settings = {
-        Theme = "Dark",
-		Transparency = true,
+        Theme = "Slate",
         MenuKeybind = "LeftAlt",
         AutoCursorUnlock = false,
     }
