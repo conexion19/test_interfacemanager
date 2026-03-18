@@ -23,20 +23,6 @@ function InterfaceManager:BuildInterfaceSection(tab)
 			self.Library.MinimizeKeybind = key
 		end
 	})
-	
-	local themes = {}
-	for name, _ in pairs(self.Library.Themes or {}) do
-		table.insert(themes, name)
-	end
-
-	section:AddDropdown("InterfaceTheme", {
-		Title = "Theme",
-		Values = themes,
-		Default = self.Library.Theme,
-		Callback = function(themeName)
-			self.Library:SetTheme(themeName)
-		end
-	})
 end
 
 return InterfaceManager
