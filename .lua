@@ -1,38 +1,145 @@
 local httpService = game:GetService("HttpService")
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
 
-local InterfaceManager = {} do
-	InterfaceManager.Folder = (function()
-        local hash = 0
-        for i = 1, #game.JobId do
-            hash = (hash + game.JobId:byte(i)) % 256
-        end
-        return "HeliosCache_" .. string.format("%02x", hash)
-    end)()
+local SaveManager = {} do
+	SaveManager.Folder = "HeliosSettings"
+	SaveManager.Ignore = {}
+	SaveManager.Parser = {
+		Toggle = {
+			Save = function(idx, object) 
+				return { type = "Toggle", idx = idx, value = object.Value } 
+			end,
+			Load = function(idx, data)
+				if SaveManager.Options[idx] then 
+					pcall(function() SaveManager.Options[idx]:SetValue(data.value) end)
+				end
+			end,
+		},
+		Slider = {
+			Save = function(idx, object)
+				return { type = "Slider", idx = idx, value = tostring(object.Value) }
+			end,
+			Load = function(idx, data)
+				if SaveManager.Options[idx] then 
+					pcall(function() SaveManager.Options[idx]:SetValue(data.value) end)
+				end
+			end,
+		},
+		Dropdown = {
+			Save = function(idx, object)
+				return { type = "Dropdown", idx = idx, value = object.Value, mutli = object.Multi }
+			end,
+			Load = function(idx, data)
+				if SaveManager.Options[idx] then 
+					pcall(function() SaveManager.Options[idx]:SetValue(data.value) end)
+				end
+			end,
+		},
+		Colorpicker = {
+			Save = function(idx, object)
+				return { type = "Colorpicker", idx = idx, value = object.Value:ToHex(), transparency = object.Transparency }
+			end,
+			Load = function(idx, data)
+				if SaveManager.Options[idx] then 
+					pcall(function() SaveManager.Options[idx]:SetValueRGB(Color3.fromHex(data.value), data.transparency) end)
+				end
+			end,
+		},
+		Keybind = {
+			Save = function(idx, object)
+				return { type = "Keybind", idx = idx, mode = object.Mode, key = object.Value.Name }
+			end,
+			Load = function(idx, data)
+				if SaveManager.Options[idx] then 
+					pcall(function() SaveManager.Options[idx]:SetValue(data.key, data.mode) end)
+				end
+			end,
+		},
 
-    InterfaceManager.Settings = {
-        Theme = "Slate",
-		Transparency = true,
-        MenuKeybind = "LeftAlt",
-        AutoCursorUnlock = false,
-    }
+		Input = {
+			Save = function(idx, object)
+				return { type = "Input", idx = idx, text = object.Value }
+			end,
+			Load = function(idx, data)
+				if SaveManager.Options[idx] and type(data.text) == "string" then
+					pcall(function() SaveManager.Options[idx]:SetValue(data.text) end)
+				end
+			end,
+		},
+	}
 
-    InterfaceManager.CursorConnection = nil
-
-    function InterfaceManager:SetFolder(folder)
-		self.Folder = folder
-		pcall(function()
-			self:BuildFolderTree()
-		end)
+	function SaveManager:SetIgnoreIndexes(list)
+		for _, key in next, list do
+			self.Ignore[key] = true
+		end
 	end
 
-    function InterfaceManager:BuildFolderTree()
-		local paths = {}
-		local parts = self.Folder:split("/")
-		for idx = 1, #parts do
-			paths[#paths + 1] = table.concat(parts, "/", 1, idx)
+	function SaveManager:SetFolder(folder)
+		self.Folder = folder;
+		self:BuildFolderTree()
+	end
+
+	function SaveManager:Save(name)
+		if (not name) then
+			return false, "no config file is selected"
 		end
+
+		local fullPath = self.Folder .. "/settings/" .. name .. ".json"
+
+		local data = {
+			objects = {}
+		}
+
+		for idx, option in next, SaveManager.Options do
+			if not self.Parser[option.Type] then continue end
+			if self.Ignore[idx] then continue end
+
+			table.insert(data.objects, self.Parser[option.Type].Save(idx, option))
+		end	
+
+		local success, encoded = pcall(httpService.JSONEncode, httpService, data)
+		if not success then
+			return false, "failed to encode data"
+		end
+
+		writefile(fullPath, encoded)
+		return true
+	end
+
+	function SaveManager:Load(name)
+		if (not name) then
+			return false, "no config file is selected"
+		end
+		
+		local file = self.Folder .. "/settings/" .. name .. ".json"
+		if not isfile(file) then return false, "invalid file" end
+
+		local success, decoded = pcall(httpService.JSONDecode, httpService, readfile(file))
+		if not success then return false, "decode error" end
+
+		for _, option in next, decoded.objects do
+			if self.Parser[option.type] then
+				task.spawn(function() 
+                    pcall(function()
+                        self.Parser[option.type].Load(option.idx, option) 
+                    end)
+                end)
+			end
+		end
+
+		return true
+	end
+
+	function SaveManager:IgnoreThemeSettings()
+		self:SetIgnoreIndexes({ 
+			"InterfaceTheme", "AcrylicToggle", "TransparentToggle", "MenuKeybind"
+		})
+	end
+
+	function SaveManager:BuildFolderTree()
+		local paths = {
+			self.Folder,
+			self.Folder .. "/settings"
+		}
 
 		for i = 1, #paths do
 			local str = paths[i]
@@ -42,224 +149,166 @@ local InterfaceManager = {} do
 		end
 	end
 
-    function InterfaceManager:SaveSettings()
-		writefile(self.Folder .. "/config.dat", httpService:JSONEncode(InterfaceManager.Settings))
-    end
+	function SaveManager:RefreshConfigList()
+		local list = listfiles(self.Folder .. "/settings")
 
-    function InterfaceManager:LoadSettings()
-        local path = self.Folder .. "/config.dat"
-		if isfile(path) then
-			local data = readfile(path)
-            local success, decoded = pcall(function() return httpService:JSONDecode(data) end)
+		local out = {}
+		for i = 1, #list do
+			local file = list[i]
+			if file:sub(-5) == ".json" then
+				local pos = file:find(".json", 1, true)
+				local start = pos
 
-            if success then
-                for i, v in next, decoded do
-                    InterfaceManager.Settings[i] = v
-                end
-            end
-        end
-        -- Force default theme fallback if invalid
-        if not InterfaceManager.Settings.Theme then
-            InterfaceManager.Settings.Theme = "Slate"
-        end
-    end
-
-    function InterfaceManager:BuildInterfaceSection(tab)
-		if not self.Library or type(self.Library) ~= "table" then
-			warn("[InterfaceManager] Library must be set before calling BuildInterfaceSection")
-			return
-		end
-		
-		if not tab or type(tab.AddSection) ~= "function" then
-			warn("[InterfaceManager] Invalid tab object - missing AddSection method")
-			return
-		end
-		
-		local Library = self.Library
-		local Settings = InterfaceManager.Settings
-
-		pcall(function()
-			InterfaceManager:LoadSettings()
-		end)
-
-		local success, section = pcall(function() return tab:AddSection("Interface") end)
-		if not success or type(section) ~= "table" then 
-			warn("[InterfaceManager] Failed to create Interface section")
-			return 
-		end
-
-        if not Settings.Theme then Settings.Theme = "Slate" end
-        pcall(function()
-            if type(Library.SetTheme) == "function" then
-                Library:SetTheme(Settings.Theme)
-            end
-        end)
-		
-        if Settings.Transparency == nil then Settings.Transparency = true end
-        pcall(function()
-            if type(Library.ToggleTransparency) == "function" then
-                Library:ToggleTransparency(Settings.Transparency)
-            end
-        end)
-        
-		pcall(function()
-			InterfaceManager:SaveSettings()
-		end)
-
-		if Library and type(Library) == "table" and Library.UseAcrylic then
-			pcall(function()
-				if type(section) == "table" and type(section.AddToggle) == "function" then
-					section:AddToggle("AcrylicToggle", {
-						Title = "Acrylic",
-						Description = "The blurred background requires graphic quality 8+",
-						Default = Settings.Acrylic,
-						Callback = function(Value)
-							if type(Value) == "boolean" then
-								pcall(function()
-									if type(Library.ToggleAcrylic) == "function" then
-										Library:ToggleAcrylic(Value)
-									end
-								end)
-								Settings.Acrylic = Value
-								InterfaceManager:SaveSettings()
-							end
-						end
-					})
+				local char = file:sub(pos, pos)
+				while char ~= "/" and char ~= "\\" and char ~= "" do
+					pos = pos - 1
+					char = file:sub(pos, pos)
 				end
-			end)
-		end
-	
-		pcall(function()
-            if type(section) == "table" and type(section.AddToggle) == "function" then
-                section:AddToggle("TransparentToggle", {
-                    Title = "Transparency",
-                    Description = "Makes the window transparent",
-                    Default = Settings.Transparency,
-                    Callback = function(Value)
-                        if type(Value) == "boolean" then
-                            pcall(function()
-                                if type(Library.ToggleTransparency) == "function" then
-                                    Library:ToggleTransparency(Value)
-                                end
-                            end)
-                            Settings.Transparency = Value
-                            InterfaceManager:SaveSettings()
-                        end
-                    end
-                })
-            end
-        end)
-		
-		if type(section) == "table" and type(section.AddKeybind) == "function" then
-			local success2, MenuKeybind = pcall(function() return section:AddKeybind("MenuKeybind", {
-				Title = "Minimize Bind",
-				Default = Settings.MenuKeybind or "LeftAlt",
-				NoDisplay = true,
-				Callback = function(Value)
-					if type(Value) == "string" then
-						Settings.MenuKeybind = Value
-						InterfaceManager:SaveSettings()
-						if Library then
-                             Library.MinimizeKeybind = Value
-                        end
+
+				if char == "/" or char == "\\" then
+					local name = file:sub(pos + 1, start - 1)
+					if name ~= "options" then
+						table.insert(out, name)
 					end
 				end
-			}) end)
-			
-			if success2 and MenuKeybind and type(MenuKeybind) == "table" then
-				Library.MinimizeKeybind = MenuKeybind
 			end
 		end
+		
+		return out
+	end
 
-		-- Theme Dropdown
-        if type(section) == "table" and type(section.AddDropdown) == "function" then
-             local themes = {"Slate"}
-             
-             section:AddDropdown("InterfaceTheme", {
-                Title = "Theme",
-                Values = themes,
-                Default = "Slate",
-                Callback = function(Value)
-                    if type(Library.SetTheme) == "function" then
-                        Library:SetTheme(Value)
-                    end
-                    Settings.Theme = Value
-                    InterfaceManager:SaveSettings()
-                end
-            })
-        end
-
-		if game.PlaceId == 93978595733734 or game.GameId == 93978595733734 then
-			pcall(function()
-				if type(section) == "table" and type(section.AddToggle) == "function" then
-					section:AddToggle("AutoCursorUnlock", {
-						Title = "Auto Cursor Unlock",
-						Description = "Automatically show cursor when UI opens and hide when closed.",
-						Default = Settings.AutoCursorUnlock or false,
-						Callback = function(Value)
-							if type(Value) == "boolean" then
-								Settings.AutoCursorUnlock = Value
-								InterfaceManager:SaveSettings()
-								
-								if Value then
-									if InterfaceManager.CursorConnection then
-										InterfaceManager.CursorConnection:Disconnect()
-									end
-									
-									if Library.Window and Library.Window.Root then
-										InterfaceManager.CursorConnection = Library.Window.Root:GetPropertyChangedSignal("Visible"):Connect(function()
-											if Library.Window.Root.Visible then
-												pcall(function()
-													UserInputService.MouseBehavior = Enum.MouseBehavior.Default
-													UserInputService.MouseIconEnabled = true
-												end)
-											end
-										end)
-									end
-									
-									if Library.Window and not Library.Window.Minimized then
-										pcall(function()
-											UserInputService.MouseBehavior = Enum.MouseBehavior.Default
-											UserInputService.MouseIconEnabled = true
-										end)
-									end
-								else
-									if InterfaceManager.CursorConnection then
-										InterfaceManager.CursorConnection:Disconnect()
-										InterfaceManager.CursorConnection = nil
-									end
-								end
-							end
-						end
-					})
-				end
-			end)
-		end
-    end
-
-    function InterfaceManager:DisableCursorUnlock()
-        if InterfaceManager.CursorConnection then
-            InterfaceManager.CursorConnection:Disconnect()
-            InterfaceManager.CursorConnection = nil
-        end
-        pcall(function()
-            UserInputService.MouseBehavior = Enum.MouseBehavior.Default
-            UserInputService.MouseIconEnabled = true
-        end)
-    end
-
-    function InterfaceManager:SetLibrary(library)
+	function SaveManager:SetLibrary(library)
 		self.Library = library
+        self.Options = library.Options
+	end
 
-		local originalDestroy = library.Destroy
-		library.Destroy = function(lib, ...)
-			InterfaceManager:DisableCursorUnlock()
-			if originalDestroy then
-				return originalDestroy(lib, ...)
+	function SaveManager:LoadAutoloadConfig()
+		if isfile(self.Folder .. "/settings/autoload.txt") then
+			local name = readfile(self.Folder .. "/settings/autoload.txt")
+
+			local success, err = self:Load(name)
+			if not success then
+				return self.Library:Notify({
+					Title = "Config Loader",
+					Content = "Failed to load autoload config: " .. err,
+					Duration = 7
+				})
 			end
+
+			self.Library:Notify({
+				Title = "Config Loader",
+				Content = string.format("Auto loaded config %q", name),
+				Duration = 7
+			})
 		end
 	end
+
+	function SaveManager:BuildConfigSection(tab)
+		assert(self.Library, "Must set SaveManager.Library")
+
+		local section = tab:AddSection("Configuration")
+
+		section:AddInput("SaveManager_ConfigName",    { Title = "Config name" })
+		section:AddDropdown("SaveManager_ConfigList", { Title = "Config list", Values = self:RefreshConfigList(), AllowNull = true })
+
+		section:AddButton({
+            Title = "Create config",
+            Callback = function()
+                local name = SaveManager.Options.SaveManager_ConfigName.Value
+
+                if name:gsub(" ", "") == "" then 
+                    return self.Library:Notify({
+						Title = "Config Loader",
+						Content = "Invalid config name (empty)",
+						Duration = 7
+					})
+                end
+
+                local success, err = self:Save(name)
+                if not success then
+                    return self.Library:Notify({
+						Title = "Config Loader",
+						Content = "Failed to save config: " .. err,
+						Duration = 7
+					})
+                end
+
+				self.Library:Notify({
+					Title = "Config Loader",
+					Content = string.format("Created config %q", name),
+					Duration = 7
+				})
+
+                SaveManager.Options.SaveManager_ConfigList:SetValues(self:RefreshConfigList())
+                SaveManager.Options.SaveManager_ConfigList:SetValue(nil)
+            end
+        })
+
+        section:AddButton({Title = "Load config", Callback = function()
+			local name = SaveManager.Options.SaveManager_ConfigList.Value
+
+			local success, err = self:Load(name)
+			if not success then
+				return self.Library:Notify({
+					Title = "Config Loader",
+					Content = "Failed to load config: " .. err,
+					Duration = 7
+				})
+			end
+
+			self.Library:Notify({
+				Title = "Config Loader",
+				Content = string.format("Loaded config %q", name),
+				Duration = 7
+			})
+		end})
+
+		section:AddButton({Title = "Overwrite config", Callback = function()
+			local name = SaveManager.Options.SaveManager_ConfigList.Value
+
+			local success, err = self:Save(name)
+			if not success then
+				return self.Library:Notify({
+					Title = "Config Loader",
+					Content = "Failed to overwrite config: " .. err,
+					Duration = 7
+				})
+			end
+
+			self.Library:Notify({
+				Title = "Config Loader",
+				Content = string.format("Overwrote config %q", name),
+				Duration = 7
+			})
+		end})
+
+		section:AddButton({Title = "Refresh list", Callback = function()
+			SaveManager.Options.SaveManager_ConfigList:SetValues(self:RefreshConfigList())
+			SaveManager.Options.SaveManager_ConfigList:SetValue(nil)
+		end})
+
+		local AutoloadButton
+		AutoloadButton = section:AddButton({Title = "Set as autoload", Description = "Current autoload config: none", Callback = function()
+			local name = SaveManager.Options.SaveManager_ConfigList.Value
+			writefile(self.Folder .. "/settings/autoload.txt", name)
+			AutoloadButton:SetDesc("Current autoload config: " .. name)
+			self.Library:Notify({
+				Title = "Config Loader",
+				Content = string.format("Set %q to auto load", name),
+				Duration = 7
+			})
+		end})
+
+		if isfile(self.Folder .. "/settings/autoload.txt") then
+			local name = readfile(self.Folder .. "/settings/autoload.txt")
+			AutoloadButton:SetDesc("Current autoload config: " .. name)
+		end
+
+		SaveManager:SetIgnoreIndexes({ "SaveManager_ConfigList", "SaveManager_ConfigName" })
+	end
+
+	SaveManager:BuildFolderTree()
 end
 
-setmetatable(InterfaceManager, { __metatable = "Helios Interface" })
-return InterfaceManager
+setmetatable(SaveManager, { __metatable = "Helios SaveManager" })
+return SaveManager
