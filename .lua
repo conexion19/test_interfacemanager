@@ -7,6 +7,7 @@ local InterfaceManager = {} do
 
     InterfaceManager.Settings = {
         Theme = "Slate",
+		Transparency = true,
         MenuKeybind = "LeftAlt",
         AutoCursorUnlock = false,
     }
@@ -87,10 +88,61 @@ local InterfaceManager = {} do
                 Library:SetTheme(Settings.Theme)
             end
         end)
+		
+        if Settings.Transparency == nil then Settings.Transparency = true end
+        pcall(function()
+            if type(Library.ToggleTransparency) == "function" then
+                Library:ToggleTransparency(Settings.Transparency)
+            end
+        end)
         
 		pcall(function()
 			InterfaceManager:SaveSettings()
 		end)
+
+		if Library and type(Library) == "table" and Library.UseAcrylic then
+			pcall(function()
+				if type(section) == "table" and type(section.AddToggle) == "function" then
+					section:AddToggle("AcrylicToggle", {
+						Title = "Acrylic",
+						Description = "The blurred background requires graphic quality 8+",
+						Default = Settings.Acrylic,
+						Callback = function(Value)
+							if type(Value) == "boolean" then
+								pcall(function()
+									if type(Library.ToggleAcrylic) == "function" then
+										Library:ToggleAcrylic(Value)
+									end
+								end)
+								Settings.Acrylic = Value
+								InterfaceManager:SaveSettings()
+							end
+						end
+					})
+				end
+			end)
+		end
+	
+		pcall(function()
+            if type(section) == "table" and type(section.AddToggle) == "function" then
+                section:AddToggle("TransparentToggle", {
+                    Title = "Transparency",
+                    Description = "Makes the window transparent",
+                    Default = Settings.Transparency,
+                    Callback = function(Value)
+                        if type(Value) == "boolean" then
+                            pcall(function()
+                                if type(Library.ToggleTransparency) == "function" then
+                                    Library:ToggleTransparency(Value)
+                                end
+                            end)
+                            Settings.Transparency = Value
+                            InterfaceManager:SaveSettings()
+                        end
+                    end
+                })
+            end
+        end)
 		
 		if type(section) == "table" and type(section.AddKeybind) == "function" then
 			local success2, MenuKeybind = pcall(function() return section:AddKeybind("MenuKeybind", {
