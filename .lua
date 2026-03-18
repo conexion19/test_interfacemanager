@@ -3,13 +3,7 @@ local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
 local InterfaceManager = {} do
-	InterfaceManager.Folder = (function()
-        local hash = 0
-        for i = 1, #game.JobId do
-            hash = (hash + game.JobId:byte(i)) % 256
-        end
-        return "HeliosCache_" .. string.format("%02x", hash)
-    end)()
+	InterfaceManager.Folder = "HeliosCache"
 
     InterfaceManager.Settings = {
         Theme = "Slate",
@@ -261,5 +255,4 @@ local InterfaceManager = {} do
 	end
 end
 
-setmetatable(InterfaceManager, { __metatable = "Helios Interface" })
 return InterfaceManager
