@@ -13,6 +13,7 @@ local InterfaceManager = {} do
 
     InterfaceManager.Settings = {
         Theme = "Slate",
+		Transparency = true,
         MenuKeybind = "LeftAlt",
         AutoCursorUnlock = false,
     }
@@ -158,9 +159,8 @@ local InterfaceManager = {} do
 					if type(Value) == "string" then
 						Settings.MenuKeybind = Value
 						InterfaceManager:SaveSettings()
-						if Library.MinimizeKey then
-                             -- Update library key if possible
-                             -- Library.MinimizeKey = Enum.KeyCode[Value] -- Requires conversion
+						if Library then
+                             Library.MinimizeKeybind = Value
                         end
 					end
 				end
@@ -173,17 +173,12 @@ local InterfaceManager = {} do
 
 		-- Theme Dropdown
         if type(section) == "table" and type(section.AddDropdown) == "function" then
-             local themes = {}
-             if Library.Themes then
-                 themes = Library.Themes
-             else
-                 themes = {"Slate", "Dark", "Light"} 
-             end
+             local themes = {"Slate"}
              
              section:AddDropdown("InterfaceTheme", {
                 Title = "Theme",
                 Values = themes,
-                Default = Settings.Theme,
+                Default = "Slate",
                 Callback = function(Value)
                     if type(Library.SetTheme) == "function" then
                         Library:SetTheme(Value)
@@ -266,4 +261,5 @@ local InterfaceManager = {} do
 	end
 end
 
+setmetatable(InterfaceManager, { __metatable = "Helios Interface" })
 return InterfaceManager
